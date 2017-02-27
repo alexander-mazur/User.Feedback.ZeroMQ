@@ -20,8 +20,8 @@ namespace User.Feedback.Common.ZeroMQ
             where TResponse : IUserFeedbackMessage
             where TRequest : IUserFeedbackMessage;
 
-        void Response<T>(T message)
-            where T : IUserFeedbackMessage;
-
+        void ResponseToRequest<TRequest, TResponse>(Func<TResponse> callback)
+            where TRequest : IUserFeedbackMessage
+            where TResponse : IUserFeedbackMessage;
     }
 }

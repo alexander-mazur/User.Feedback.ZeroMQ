@@ -17,6 +17,15 @@ namespace User.Feedback.Central.BusinessObjects
         public void Initialize()
         {
             Connector.Subscribe<UserFeedbackMessage>(ProcessTellUserFeedbackMessage);
+            Connector.Subscribe<UserFeedbacksMessage>(ProcessTellUserFeedbacksMessage);
+        }
+
+        private void ProcessTellUserFeedbacksMessage(UserFeedbacksMessage userFeedbacksMessage)
+        {
+            foreach (var userFeedback in userFeedbacksMessage.UserFeedbacks)
+            {
+                UserFeedbackPersistence.SaveUserFeedback(userFeedback);
+            }
         }
 
         private void ProcessTellUserFeedbackMessage(UserFeedbackMessage userFeedbackMessage)

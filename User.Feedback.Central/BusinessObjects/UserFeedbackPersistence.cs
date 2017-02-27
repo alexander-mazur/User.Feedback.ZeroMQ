@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 using User.Feedback.Common;
 using User.Feedback.Common.Messages;
@@ -19,20 +20,8 @@ namespace User.Feedback.Central.BusinessObjects
 
         public void Initialize()
         {
-            //Connector.Subscribe<UserFeedbackMessage>(ProcessTellUserFeedbackMessage);
-
-            //Receive<UserFeedbackMessage>(tellUserFeedback =>
-            //{
-            //    _userFeedbacks.Add(tellUserFeedback.UserFeedback);
-            //    Sender.Tell(new UserFeedbackUpdateMessage(
-            //        new UserFeedback(tellUserFeedback.UserFeedback.Message + "*", tellUserFeedback.UserFeedback.Created)));
-            //});
-
-            //Receive<RequestUserFeedbacksMessage>(request =>
-            //{
-            //    var result = new ResponseRequestUserFeedbacksMessage(_userFeedbacks);
-            //    Sender.Tell(result, Self);
-            //});
+            Connector.ResponseToRequest<RequestUserFeedbacksMessage, ResponseRequestUserFeedbacksMessage>(
+                () => new ResponseRequestUserFeedbacksMessage(_userFeedbacks));
         }
 
         public void SaveUserFeedback(UserFeedback userFeedback)

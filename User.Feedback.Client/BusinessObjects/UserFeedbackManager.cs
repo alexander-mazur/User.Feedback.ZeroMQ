@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -32,6 +33,8 @@ namespace User.Feedback.Client.BusinessObjects
             _stopwatch.Reset();
             _stopwatch.Start();
 
+            IList<UserFeedback> userFeedbacks = new List<UserFeedback>();
+
             for (var index = 0; index < count; index++)
             {
                 var newUserFeedback = new UserFeedback(string.Format("{0}:{1}", index + 1, userFeedback.Message), userFeedback.Created);
@@ -41,8 +44,11 @@ namespace User.Feedback.Client.BusinessObjects
                     _lastUserFeedbackMessage = newUserFeedback.Message;
                 }
 
-                TellUserFeedback(newUserFeedback);
+                userFeedbacks.Add(newUserFeedback);
             }
+
+            _connector.Publish<UserFeedbacksMessage>(new UserFeedbacksMessage(userFeedbacks));
+
         }
 
         public Task<ResponseRequestUserFeedbacksMessage> AskUserFeedbackCollection()

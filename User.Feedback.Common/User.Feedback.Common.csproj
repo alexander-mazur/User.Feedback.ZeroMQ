@@ -50,6 +50,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Messages\IUserFeedbackMessage.cs" />
+    <Compile Include="Messages\UserFeedbacksMessage.cs" />
     <Compile Include="Messages\UserFeedbackUpdateMessage.cs" />
     <Compile Include="Messages\ResponseRequestUserFeedbacksMessage.cs" />
     <Compile Include="Messages\RequestUserFeedbacksMessage.cs" />

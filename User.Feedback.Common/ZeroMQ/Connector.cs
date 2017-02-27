@@ -10,17 +10,21 @@ namespace User.Feedback.Common.ZeroMQ
 {
     public class Connector : IConnector
     {
-        private const string ConnectorEndPoint = "tcp://localhost:5563";
-        private const string PublisherEndPoint = "tcp://*:5563";
+        private const string SubEndPoint = "tcp://localhost:5563";
+        private const string PubEndPoint = "tcp://*:5563";
 
-        public void Publish<T>(T message) where T : IUserFeedbackMessage
+        private const string ReqEndPoint = "tcp://localhost:5564";
+        private const string RepEndPoint = "tcp://*:5564";
+
+        public void Publish<T>(T message) 
+            where T : IUserFeedbackMessage
         {
             using (var context = new ZContext())
             {
                 using (var publisher = new ZSocket(context, ZSocketType.PUB))
                 {
                     publisher.Linger = TimeSpan.Zero;
-                    publisher.Bind(PublisherEndPoint);
+                    publisher.Bind(PubEndPoint);
 
                     using (var zMessage = new ZMessage())
                     {
@@ -40,7 +44,8 @@ namespace User.Feedback.Common.ZeroMQ
         }
 
 
-        public void Subscribe<T>(Action<T> callback) where T : IUserFeedbackMessage
+        public void Subscribe<T>(Action<T> callback) 
+            where T : IUserFeedbackMessage
         {
             Task.Factory.StartNew(() =>
             {
@@ -50,7 +55,7 @@ namespace User.Feedback.Common.ZeroMQ
                     {
                         var messageType = GetMessageType<T>();
 
-                        subscriber.Connect(ConnectorEndPoint);
+                        subscriber.Connect(SubEndPoint);
                         subscriber.Subscribe(messageType);
 
                         while (true)
@@ -70,7 +75,8 @@ namespace User.Feedback.Common.ZeroMQ
             });
         }
 
-        public void Unsubscribe<T>() where T : IUserFeedbackMessage
+        public void Unsubscribe<T>() 
+            where T : IUserFeedbackMessage
         {
             using (var context = new ZContext())
             {
@@ -78,44 +84,71 @@ namespace User.Feedback.Common.ZeroMQ
                 {
                     var messageType = GetMessageType<T>();
 
-                    subscriber.Connect(ConnectorEndPoint);
+                    subscriber.Connect(SubEndPoint);
                     subscriber.Unsubscribe(messageType);
                 }
             }
         }
 
-        public Task<TResponse> RequestResponse<TRequest, TResponse>(TRequest requestMessage) where TRequest : IUserFeedbackMessage where TResponse : IUserFeedbackMessage
-        {
-            using (var requester = new ZSocket(ZSocketType.REQ))
-            {
-                requester.Connect(ConnectorEndPoint);
-                requester.Send(new ZFrame(requestMessage.ToByteArray()));
-
-                return ReceiveResponse<TResponse>(requester);
-            }
-        }
-
-        public void Response<T>(T message) where T : IUserFeedbackMessage
-        {
-            using (var requester = new ZSocket(ZSocketType.REP))
-            {
-                requester.Connect(ConnectorEndPoint);
-                requester.Send(new ZFrame(message.ToByteArray()));
-            }
-        }
-
-        private Task<TResponse> ReceiveResponse<TResponse>(ZSocket requester) where TResponse : IUserFeedbackMessage
+        public Task<TResponse> RequestResponse<TRequest, TResponse>(TRequest requestMessage) 
+            where TRequest : IUserFeedbackMessage 
+            where TResponse : IUserFeedbackMessage
         {
             return Task.Factory.StartNew<TResponse>(() =>
             {
-                using (var frame = requester.ReceiveFrame())
+                using (var context = new ZContext())
                 {
-                    return frame.Read().FromByteArray<TResponse>();
+                    using (var requester = new ZSocket(context, ZSocketType.REQ))
+                    {
+                        requester.Connect(ReqEndPoint);
+                        requester.Send(new ZFrame(requestMessage.ToByteArray()));
+
+                        Console.Out.WriteLine("The request sent: {0}", requestMessage);
+
+                        using (var frame = requester.ReceiveFrame())
+                        {
+                            Console.Out.WriteLine("The response for request received!");
+
+                            return frame.Read().FromByteArray<TResponse>();
+                        }
+                    }
                 }
             });
         }
 
-        private string GetMessageType<T>()
+        public void ResponseToRequest<TRequest, TResponse>(Func<TResponse> callback)
+            where TRequest : IUserFeedbackMessage
+            where TResponse : IUserFeedbackMessage
+        {
+            Task.Factory.StartNew(() =>
+            {
+                using (var context = new ZContext())
+                {
+                    using (var responder = new ZSocket(context, ZSocketType.REP))
+                    {
+                        responder.Bind(RepEndPoint);
+
+                        while (true)
+                        {
+                            using (var frame = responder.ReceiveFrame())
+                            {
+                                var request = frame.Read().FromByteArray<TRequest>();
+
+                                Console.Out.WriteLine("The request received: {0}", request);
+
+                                if (request != null)
+                                {
+                                    var response = callback();
+                                    responder.Send(new ZFrame(response.ToByteArray()));
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        private static string GetMessageType<T>()
             where T : IUserFeedbackMessage
         {
             return string.Format("{0}", typeof(T));
