@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 using User.Feedback.Common.Messages;
@@ -9,7 +10,7 @@ namespace User.Feedback.Common.ZeroMQ
 {
     public class Connector : IConnector
     {
-        private const string ConnectorEndPoint = "tcp://127.0.0.1:5563";
+        private const string ConnectorEndPoint = "tcp://localhost:5563";
         private const string PublisherEndPoint = "tcp://*:5563";
 
         public void Publish<T>(T message) where T : IUserFeedbackMessage
@@ -20,15 +21,19 @@ namespace User.Feedback.Common.ZeroMQ
                 {
                     publisher.Linger = TimeSpan.Zero;
                     publisher.Bind(PublisherEndPoint);
-                    
+
                     using (var zMessage = new ZMessage())
                     {
                         var messageType = GetMessageType<T>();
 
                         zMessage.Add(new ZFrame(messageType));
                         zMessage.Add(new ZFrame(message.ToByteArray()));
+                        
+                        Thread.Sleep(500); // This is a dirty hack to make it work :(
 
                         publisher.SendMessage(zMessage);
+
+                        Console.Out.WriteLine("The message sent: {0}", messageType);
                     }
                 }
             }
@@ -54,6 +59,8 @@ namespace User.Feedback.Common.ZeroMQ
                             {
                                 if (messageType == message[0].ReadString())
                                 {
+                                    Console.Out.WriteLine("The message received: {0}", messageType);
+
                                     callback(message[1].Read().FromByteArray<T>());
                                 }
                             }
